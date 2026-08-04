@@ -6,7 +6,6 @@ import { state, dom } from '../state.js';
 import { formatDate, notePreviewText, escHtml } from '../format.js';
 import { createFolder, deleteFolder, renameFolder, getFolderById } from '../folders.js';
 import { updateNote, saveNotes, permanentlyDeleteNote, restoreNote, daysUntilPurge } from '../notes.js';
-import { persistNotes } from '../storage.js';
 import { showToast } from './toast.js';
 
 /* ── Folder section ─────────────────────────────────────── */
@@ -165,18 +164,18 @@ function closeFolderModal() {
   dom.folderNameInput.value = '';
 }
 
-function confirmFolderModal() {
+async function confirmFolderModal() {
   const name = dom.folderNameInput.value.trim();
   if (!name) return;
 
   if (folderModalMode === 'create') {
-    const folder = createFolder(name);
+    const folder = await createFolder(name);
     state.activeFolderId = folder.id;
     renderFolders();
     renderSidebar(dom.searchInput.value);
     showToast(`✦ Folder "${folder.name}" created`);
   } else if (folderModalMode === 'rename') {
-    renameFolder(folderModalTargetId, name);
+    await renameFolder(folderModalTargetId, name);
     renderFolders();
     showToast('✦ Folder renamed');
   }
@@ -226,7 +225,7 @@ function closeMoveModal() {
 
 export function initSidebarEvents() {
   // Click note (or trash action buttons)
-  dom.notesList.addEventListener('click', e => {
+  dom.notesList.addEventListener('click', async e => {
     // Restore button in Trash
     const restoreBtn = e.target.closest('.trash-restore-btn');
     if (restoreBtn) {
@@ -234,7 +233,7 @@ export function initSidebarEvents() {
       const id = restoreBtn.dataset.id;
       const note = state.notes.find(n => n.id === id);
       const title = note?.title || 'Untitled';
-      restoreNote(id);
+      await restoreNote(id);
       if (state.activeId === id) document.dispatchEvent(new CustomEvent('editor:close'));
       renderFolders();
       renderSidebar(dom.searchInput.value);
@@ -250,7 +249,7 @@ export function initSidebarEvents() {
       const note = state.notes.find(n => n.id === id);
       const title = note?.title || 'Untitled';
       if (!confirm(`Permanently delete "${title}"? This cannot be undone.`)) return;
-      permanentlyDeleteNote(id);
+      await permanentlyDeleteNote(id);
       if (state.activeId === id) document.dispatchEvent(new CustomEvent('editor:close'));
       renderFolders();
       renderSidebar(dom.searchInput.value);
@@ -270,7 +269,7 @@ export function initSidebarEvents() {
   });
 
   // Folder list clicks (select, rename, delete)
-  dom.folderList.addEventListener('click', e => {
+  dom.folderList.addEventListener('click', async e => {
     // Rename button
     const renameBtn = e.target.closest('.rename-folder-btn');
     if (renameBtn) {
@@ -290,12 +289,10 @@ export function initSidebarEvents() {
         ? `Delete "${folder?.name}"? Its ${noteCount} note${noteCount !== 1 ? 's' : ''} will move to All Notes.`
         : `Delete folder "${folder?.name}"?`;
       if (!confirm(msg)) return;
-      deleteFolder(fid);
+      await deleteFolder(fid);   // handles nulling folderId + persisting affected notes
       if (state.activeFolderId === fid) state.activeFolderId = null;
       renderFolders();
       renderSidebar(dom.searchInput.value);
-      // Persist notes after folder deletion (folderId nulled)
-      persistNotes(state.notes);
       showToast(`🗑 Folder deleted`);
       return;
     }
@@ -316,7 +313,7 @@ export function initSidebarEvents() {
       if (!count) return;
       if (!confirm(`Permanently delete all ${count} note${count !== 1 ? 's' : ''} in Trash? This cannot be undone.`)) return;
       state.notes = state.notes.filter(n => !n.deletedAt);
-      import('../storage.js').then(({ persistNotes }) => persistNotes(state.notes));
+      await saveNotes();
       renderFolders();
       renderSidebar(dom.searchInput.value);
       showToast('🗑 Trash emptied');
@@ -338,7 +335,7 @@ export function initSidebarEvents() {
   });
 
   // Move modal events
-  dom.moveFolderList.addEventListener('click', e => {
+  dom.moveFolderList.addEventListener('click', async e => {
     const item = e.target.closest('.move-folder-item');
     if (!item || !state.activeId) return;
 
@@ -348,7 +345,7 @@ export function initSidebarEvents() {
     const note = state.notes.find(n => n.id === state.activeId);
     if (note) {
       note.folderId = newFolderId;
-      saveNotes();
+      await saveNotes();
     }
 
     const folderName = newFolderId

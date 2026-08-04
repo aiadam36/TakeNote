@@ -3,37 +3,38 @@
    ========================================== */
 
 import { state } from './state.js';
-import { persistFolders } from './storage.js';
+import { persistFolder, persistFolders, deleteFolderRecord } from './storage.js';
+import { persistNote } from './storage.js';
 
 function makeFolderId() {
   return 'f_' + crypto.randomUUID();
 }
 
-export function createFolder(name) {
+export async function createFolder(name) {
   const folder = {
     id: makeFolderId(),
     name: name.trim() || 'New Folder',
     createdAt: new Date().toISOString(),
   };
   state.folders.push(folder);
-  persistFolders(state.folders);
+  await persistFolder(folder);
   return folder;
 }
 
-export function deleteFolder(id) {
+export async function deleteFolder(id) {
   state.folders = state.folders.filter(f => f.id !== id);
   // Move notes that were in this folder back to "All Notes"
-  state.notes = state.notes.map(n =>
-    n.folderId === id ? { ...n, folderId: null } : n
-  );
-  persistFolders(state.folders);
+  const affected = state.notes.filter(n => n.folderId === id);
+  affected.forEach(n => { n.folderId = null; });
+  await deleteFolderRecord(id);
+  await Promise.all(affected.map(n => persistNote(n)));
 }
 
-export function renameFolder(id, newName) {
+export async function renameFolder(id, newName) {
   const folder = state.folders.find(f => f.id === id);
   if (!folder) return;
   folder.name = newName.trim() || folder.name;
-  persistFolders(state.folders);
+  await persistFolder(folder);
 }
 
 export function getFolderById(id) {

@@ -62,8 +62,8 @@ console.log(greet('world'));
 Start writing your own note with the **+** button.
 `;
 
-export function seedDemoNotes() {
-  const welcome = createNote();
+export async function seedDemoNotes() {
+  const welcome = await createNote();
   Object.assign(welcome, {
     title: 'Welcome to TakeNote',
     content: WELCOME_CONTENT,
@@ -72,6 +72,6 @@ export function seedDemoNotes() {
   });
 
   state.notes = [welcome];
-  saveNotes();
+  await saveNotes();
   return welcome;
 }

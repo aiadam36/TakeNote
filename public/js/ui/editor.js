@@ -92,10 +92,10 @@ export function scheduleSave() {
   dom.saveStatus.textContent = 'Saving…';
   dom.saveStatus.className = 'saving';
   clearTimeout(state.saveTimer);
-  state.saveTimer = setTimeout(() => {
+  state.saveTimer = setTimeout(async () => {
     if (!state.activeId) return;
     const newTitle = dom.noteTitle.value.trim() || 'Untitled';
-    updateNote(state.activeId, {
+    await updateNote(state.activeId, {
       title: newTitle,
       content: dom.editor.value,
     });
@@ -155,7 +155,7 @@ export function initEditorEvents() {
     renderSidebar(dom.searchInput.value);
   });
 
-  dom.deleteNoteBtn.addEventListener('click', () => {
+  dom.deleteNoteBtn.addEventListener('click', async () => {
     if (!state.activeId) return;
     const note = getNote(state.activeId);
     const title = note?.title || 'Untitled';
@@ -163,14 +163,14 @@ export function initEditorEvents() {
     if (note?.deletedAt) {
       // Already in Trash — permanently delete
       if (!confirm(`Permanently delete "${title}"? This cannot be undone.`)) return;
-      permanentlyDeleteNote(state.activeId);
+      await permanentlyDeleteNote(state.activeId);
       closeEditor();
       renderFolders();
       renderSidebar(dom.searchInput.value);
       showToast(`🗑 "${title}" permanently deleted`);
     } else {
       // Soft-delete: move to Trash
-      deleteNote(state.activeId);
+      await deleteNote(state.activeId);
       closeEditor();
       renderFolders();
       renderSidebar(dom.searchInput.value);
@@ -178,12 +178,12 @@ export function initEditorEvents() {
     }
   });
 
-  dom.restoreNoteBtn.addEventListener('click', () => {
+  dom.restoreNoteBtn.addEventListener('click', async () => {
     if (!state.activeId) return;
     const note = getNote(state.activeId);
     if (!note?.deletedAt) return;
     const title = note.title || 'Untitled';
-    restoreNote(state.activeId);
+    await restoreNote(state.activeId);
     closeEditor();
     renderFolders();
     renderSidebar(dom.searchInput.value);

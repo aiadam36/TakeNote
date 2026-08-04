@@ -35,9 +35,9 @@ function exportNotes() {
   showToast(`✦ Exported ${state.notes.length} note${state.notes.length !== 1 ? 's' : ''}`);
 }
 
-function handleImportFile(file) {
+async function handleImportFile(file) {
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result);
       const incoming = Array.isArray(data) ? data : (data.notes ?? null);
@@ -55,11 +55,11 @@ function handleImportFile(file) {
         const existingFolderIds = new Set(state.folders.map(f => f.id));
         const newFolders = data.folders.filter(f => f && typeof f.id === 'string' && !existingFolderIds.has(f.id));
         state.folders = [...state.folders, ...newFolders];
-        persistFolders(state.folders);
+        await persistFolders(state.folders);
       }
 
       state.notes = [...newNotes, ...state.notes];
-      saveNotes();
+      await saveNotes();
       renderFolders();
       renderSidebar(dom.searchInput.value);
 
